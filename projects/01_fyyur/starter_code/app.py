@@ -8,6 +8,7 @@ import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
@@ -20,8 +21,8 @@ app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
-# TODO: connect to a local postgresql database
 
 #----------------------------------------------------------------------------#
 # Models.
@@ -38,8 +39,29 @@ class Venue(db.Model):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship('Show', backref='venue', lazy = True)
 
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+ @property
+    def past_shows(self):
+      now = datetime.now()
+      past_shows = [x for x in self.shows if x.start_time < now]
+      return past_shows
+
+    @property
+    def past_shows_count(self):
+      return len(self.past_shows)
+
+    @property
+    def upcoming_shows(self):
+      now = datetime.now()
+      upcoming_shows = [x for x in self.shows if x.start_time > now]
+      return upcoming_shows
+
+    @property
+    def upcoming_shows_count(self):
+      return len(self.upcoming_shows)
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -52,10 +74,47 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship('Show', backref='artist', lazy = True)
 
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+  @property
+    def past_shows(self):
+      now = datetime.now()
+      past_shows = [x for x in self.shows if x.start_time < now]
+      return past_shows
 
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
+    @property
+    def past_shows_count(self):
+      return len(self.past_shows)
+
+    @property
+    def upcoming_shows(self):
+      now = datetime.now()
+      upcoming_shows = [x for x in self.shows if x.start_time > now]
+      return upcoming_shows
+
+    @property
+    def upcoming_shows_count(self):
+      return len(self.upcoming_shows)
+
+class Show(db.Model):
+    __tablename__ = 'Show'
+    id = db.Column(db.Integer, primary_key=True)
+    artist_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'Artist.id',
+            ondelete='CASCADE'),
+        nullable=False)
+    venue_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'Venue.id',
+            ondelete='CASCADE'),
+        nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
+
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -84,10 +143,20 @@ def index():
 #  ----------------------------------------------------------------
 
 @app.route('/venues')
+
 def venues():
-  # TODO: replace with real venues data.
-  #       num_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
+  unique_cities = []
+
+  all_venues = Venue.query
+    .with_entities(Venue.city, Venue.state)
+    .group_by(Venue.city, Venue.state)
+    .all()
+  
+  for venue in all_venues:
+
+    #STUCK
+
+    data=[{
     "city": "San Francisco",
     "state": "CA",
     "venues": [{
@@ -128,7 +197,6 @@ def search_venues():
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
-  # TODO: replace with real venue data from the venues table, using venue_id
   data1={
     "id": 1,
     "name": "The Musical Hop",
